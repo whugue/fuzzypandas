@@ -70,7 +70,7 @@ def scrape_category(cat_url):
 		df["category"]=category
 
 	print df[["score","school"]].head(10)
-	df.to_pickle("data/usnews-ranking-"+cat_url+".pickle")
+	df.to_pickle("usnews-ranking-"+cat_url+".pickle")
 
 
 
