@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import difflib
 
+
 """
 Define Functions to Map key in dataframe A to key in dataframe B, using various pre-processing steps
 a = Pandas Dataframe A
@@ -15,11 +16,8 @@ cutoff = Fuzzy Match Score Cutoff, 0.0 - 1.0 (0.6 by default)
 """
 
 def ratio_match(a, b, key, cutoff):
-	a.rename(columns = {key : key+"_A"}, inplace = True)
-	b.rename(columns = {key : key+"_B"}, inplace = True)
-	a[key+"_B"] = a[key+"_A"].map(lambda x: difflib.get_close_matches(x, b[key+"_B"], n=1, cutoff=cutoff)[0])
-
-	return a[[key+"_A", key+"_B"]]
+    keyA = key+"_A"
+    print keyA
 
 
 def sorted_ratio_match(a, b, key, cutoff):
