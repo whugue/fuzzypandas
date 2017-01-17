@@ -1,57 +1,92 @@
 
 
-import pyprind #for testing, remove this later :)
+import pyprind
 import pandas as pd
 from fuzzywuzzy import fuzz, process
 
 
+"""
+Basic Match Function 
+"""
 
-##Brute Force Matching (O(N^2) Time)
-def brute_force_match(a, b, on, scorer=fuzz.ratio, cuttoff=0.6, show_score=True):
+def basic_match(a, b, keyA, keyB, cutoff, quickmatch):
 
-    ##If multiple key variables, concatenate into single string
-    if len(on) > 1:
-        a["byvar"] = a[on].apply(lambda x: " ".join(x), axis=1)
-        b["byvar"] = b[on].apply(lambda x: " ".join(x), axis=1)
-    else:
-        a["byvar"] = a[on]
-        b["byvar"] = b[on]
+    title = "Fuzzy Matching Results"
+    #bar = pyprind.ProgBar(50, monitor=True, title=title)
 
-
-    bar = pyprind.ProgBar(50, monitor=True)
     matches = []
-    for rowA in a.byvar.unique():
-        match = process.extractOne(decode(row), b.byvar.unique(), scorer=scorer, cutoff=cutoff)
-        matches.append({"byvar": row, "matched": match[0], "score": match[1]})
-        bar.update()
+    for row in a[keyA].unique():
 
+        if quickmatch==True:
+            match = process.extractOne(row, b[keyB].unique(), scorer=fuzz.ratio, score_cutoff=cutoff)
+        else:
+            match = process.extractOne(row, b[keyB].unique(), scorer=fuzz.WRatio, score_cutoff=cutoff)
+
+        if match == None:
+            matches.append({"keyA": row, "keyB": None, "match_score": None})
+        else:
+            matches.append({"keyA": row, "keyB": match[0], "match_score": match[1]})
+
+        #bar.update()
+
+    #print bar
     return pd.DataFrame(matches)
 
+"""
+Hierarchical Match Function
+"""
+
+def hier_match(a, b, cutoff, quickmatch):
+    pass
 
 
-def fuzzy_merge(a, b, on, how="left", cutoff=0.6, match_function=brute_force_match, show_score=True):
+"""
+Dataframe Merge Function
+"""
 
-	##Merge dataframes regularly. Seperate out matches & nonmatches
+def fuzzy_merge(a, b, on, how="left", matcher=basic_match, cutoff=60, quickmatch=True):
+
+	##Perform exact match on dataframes A and B
     a["in_a"] = 1 																	
-    b["in_b"] = 1 																	
-    
-    merged = pd.merge(a, b, on=key, how="outer") 									
-    matched = merged[(merged.in_a.notnull()) & (merged.in_b.notnull())].copy()		
-    nomatch_a = merged[(merged.in_a.notnull() | (merged.in_b.isnull()))].copy()		
-    nomatch_b = merged[(merged.in_a.isnull()) | (merged.in_b.notnull())].copy()		
-    
+    b["in_b"] = 1
+
+    merged = pd.merge(a, b, on=on, how="outer")
+
+
+    ##Split results into matches & nonmatches 
+    matched = merged[(merged.in_a.notnull()) & (merged.in_b.notnull())].copy()
+    nomatch_a = merged[(merged.in_a.notnull() & (merged.in_b.isnull()))].copy()		
+    nomatch_b = merged[(merged.in_a.isnull()) & (merged.in_b.notnull())].copy()
+
+    matched["match_score"] = 100 ##All Exact matches get a match score of 100% by default
+
+
     ##If no non-matches, we're done!. Return matched dataframe
-    if nomatch_a.shape[0]==0 | nomatch_b.shape[0]==0:
-    	return matched
+    if min(nomatch_a.shape[0], nomatch_b.shape[0])==0:
+        return matched
 
-    ##Otherwise, proceed to fuzzy-matching non-exact matches
-	else:
-		xwalk = match_function(nomatch_a, nomatch_b, on=on, cutoff=cutoff, show_score=show_score)
+    ##Otherwise, try to fuzzy match the nonmatches and append any new matches
+    else:
+        if type(on) == list:
+            nomatch_a["keyA"] = a[on].apply(lambda x: " ".join(x), axis=1)
+            nomatch_b["keyB"] = b[on].apply(lambda x: " ".join(x), axis=1)
+        else:
+            nomatch_a["keyA"] = a[on]
+            nomatch_b["keyB"] = b[on]
 
-		fuzzy_merge1 = pd.merge(nonmatch_a, crosswalk, on=key+"_A", how="left")
-    	fuzzy_merge2 = pd.merge(fuzzy_merge1, nonmatch_b, on=key+"_B", how=how) 		
+        xwalk = matcher(nomatch_a, nomatch_b, keyA="keyA", keyB="keyB", cutoff=cutoff, quickmatch=quickmatch)
 
-    	return pd.concat([matched, fuzzy_merge_2], axis=0)
+        fuzzy_merge1 = pd.merge(nomatch_a, xwalk, on="keyA", how="left")
+        fuzzy_merge2 = pd.merge(fuzzymerge1, nomatch_b, on="keyB", how=how)
+
+        return fuzzy_merge2
+        #return pd.concat([matched, fuzzy_merge2], axis=0)
+
+
+
+
+
+
 
 
 
