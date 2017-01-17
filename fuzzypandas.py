@@ -1,19 +1,13 @@
 
-import time
+
+import pyprind #for testing, remove this later :)
 import pandas as pd
 from fuzzywuzzy import fuzz, process
 
 
-##Quick and dirty function to convert all text to string
-def decode_text(text):
-    if type(text) == unicode:
-        return text.encode("ascii", "replace")
-    else:
-        return text
-
 
 ##Brute Force Matching (O(N^2) Time)
-def brute_force_match(a, b, on, how, cutoff, scorer=fuzz.ratio, show_score):
+def brute_force_match(a, b, on, scorer=fuzz.ratio, cuttoff=0.6, show_score=True):
 
     ##If multiple key variables, concatenate into single string
     if len(on) > 1:
@@ -23,13 +17,15 @@ def brute_force_match(a, b, on, how, cutoff, scorer=fuzz.ratio, show_score):
         a["byvar"] = a[on]
         b["byvar"] = b[on]
 
+
+    bar = pyprind.ProgBar(50, monitor=True)
     matches = []
-    for row in a.byvar.unique():
-        match = process.extractOne(row, b.byvar.unique(), scorer=scorer)
+    for rowA in a.byvar.unique():
+        match = process.extractOne(decode(row), b.byvar.unique(), scorer=scorer, cutoff=cutoff)
         matches.append({"byvar": row, "matched": match[0], "score": match[1]})
+        bar.update()
 
     return pd.DataFrame(matches)
-
 
 
 
