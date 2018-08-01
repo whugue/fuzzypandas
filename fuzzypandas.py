@@ -26,7 +26,13 @@ def convert_to_list(value):
         return [value]
 
 
-def score_value_pairs(data, match_data, scorer=fuzz.ratio):
+def score_pairs(data, match_data, keys):
+    '''
+    For each row of data in data
+    data and match_data should be input as list of dicts
+    '''
+    combos = len(data) * len(match_data) * len(keys)
+    logger.info('Starting Pair Scoring for {n} combinations.'.format(n=combos))
 
     pairs  = []
     score_cache = {}
@@ -34,45 +40,64 @@ def score_value_pairs(data, match_data, scorer=fuzz.ratio):
     for row in data:
         for match_row in match_data:
             pair = {}
-            on = convert_to_list(on)
+            sum_scores = 0
 
-                for key in keys:
-                    pair_string = '_'.join(sorted(row[key], match_row[key]))
+            for i, key in enumerate(keys, start=1):
+   
+                pair_string = '_'.join(sorted([row[key], match_row[key]]))
 
-                    if pair_string in score_cache:
-                        score = score_cache[pair_string]
+                if pair_string in score_cache:
+                    score = score_cache[pair_string]
 
-                    else:
-                        score = scorer(row[key], match_row[key])
-                        score_cache[pair_string] = score
+                else:
+                    score = fuzz.WRatio(row[key], match_row[key])  # may want to replace with something else later
+                    score_cache[pair_string] = score
 
-                    pair[col] = pair[col]
-                    pair['{col}_matched'.format(col=col)] = pair['col']
-                    pair['{col}_match_score'] = score
+                sum_scores += score
+                avg_score = sum_scores / i
 
-            pairs.append(pair)
+                pair[key] = row[key]
+                pair['{col}_matched'.format(col=key)] = match_row[key]
+                pair['{col}_match_score'.format(col=key)] = score
+                pair['avg_match_score'] = avg_score
 
+            pairs.append(pair) 
+
+    logger.info('Completed pair matching.')
     return pairs
 
 
-def fuzzy_merge(a, b, keys, scorer=fuzz.ratio, score_cutoff=60):
+def matcher(a, b, on, score_cutoff):
     '''
-    Data and Match data are list of dicts
+    Get best matches
     '''
-    matches = score_value_pairs(a.to_dict('records'), b.to_dict('records'))
-    matches = pd.DataFrame(matches)
+    pairs = score_pairs(data=a.to_dict('records'),
+                        match_data=b.to_dict('records'),
+                        keys=on)
+    pairs = pd.DataFrame(pairs)
 
-    cols = matches.columns.tolist()
-    score_cols = [col for col in cols where '_match_score' in col]
-    other_cols = cols - score_cols
+    pairs.sort_values(by=on + ['avg_match_score'],
+                      ascending=[True] * len(on) + [False],
+                      inplace=True)
+    pairs.drop_duplicates(on, inplace=True)
 
-    matches['match_score'] = matches[score_cols].mean(axis=1)
-    matches.sort_values(by=matches.columns.tolist(), acending=False, inplace=True)
-    matches.drop_duplicates(other_cols, inplace=True)
-    matches = matches[matches.match_score <= score_cutoff].copy()
+    pairs = pairs[pairs.avg_match_score >= score_cutoff].copy()
 
-    # TODO -- Merge back onto df
-    # need to incorporate the how feature
+    return pairs
 
-    return df
     
+def fuzzy_merge(a, b, on, how='left', score_cutoff=60):
+    '''
+    Fuzzy match dataframe a onto dataframe b
+    '''
+    matches = matcher(a, b, on, score_cutoff)
+
+    merged = pd.merge(a, matches, on=on, how=how)
+    merged = pd.merge(merged,
+                      b.rename(columns={col: col+'_matched' for col in on}),
+                      on=[col+'_matched' for col in on],
+                      how=how)
+
+    # drop extraneous scores/ other variables
+
+    return merged

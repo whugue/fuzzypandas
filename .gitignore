@@ -1,6 +1,3 @@
-.DS_Store
-.ipynb_checkpoints
-old/
-deck/.DS_Store
-old/
-fuzzypandas.pyc
+*.DS_Store
+*.ipynb_checkpoints
+*__pycache__

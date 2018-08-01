@@ -1,97 +1,122 @@
-import requests
-from bs4 import BeautifulSoup
-import pandas as pd
 import pickle
+import logging
+import requests
+import pandas as pd
+from bs4 import BeautifulSoup
 
 
-base_url="http://colleges.usnews.rankingsandreviews.com/best-colleges/rankings/"
-keys=["score","school","location"]
+BASE_URL = 'http://colleges.usnews.rankingsandreviews.com/best-colleges/rankings'
+KEYS = ['score', 'school', 'location']
 
 
-#Scrape Scores, School Names and Locations from One Page of One Ranking of U.S. News Best Colleges
-def scrape_page(soup, url):
-	table=soup.find("table")
+def scrape_link(url):
+	'''
+	Scrape a link and return HTML as a BeautifulSoup object
+	'''
+	response = requests.get(url)
+	soup = BeautifulSoup(response.text, 'lxml')
 
-	scores=[]
-	schools=[]
-	locations=[]
+	return soup
 
-	for score in table.find_all("strong"):
+
+def parse_page(soup):
+	'''
+	Parse data from a page of scraped results into a pandas dataframe
+	'''
+	table = soup.find('table')
+
+	scores = []
+	schools = []
+	locations = []
+
+	for score in table.find_all('strong'):
 		scores.append(score.findNextSibling().contents[0])
 
-	for school in table.find_all(class_="school-name"):
+	for school in table.find_all(class_='school-name'):
 		schools.append(school.contents[0])
 
-	for location in table.find_all(class_="location"):
+	for location in table.find_all(class_='location'):
 		locations.append(location.contents[0])
 
-	scores=scores+["not ranked"]*(len(schools)-len(scores)) #Append "not ranked" to unranked colleges
+	# Append 'not ranked' to unranked colleges
+	scores = scores + ['not ranked'] * (len(schools) - len(scores)) #Append "not ranked" to unranked colleges
 
-	df=pd.DataFrame(dict(zip(keys,[scores,schools,locations]))) #Compile Dataframe
+	# return scraped dats as pandas dataframe
+	data = dict(zip(['score', 'school', 'location'], [scores, schools, loctions]))
 
-	return df
+	return pd.DataFrame(data)
 
 
-#Determine the Maximum Number of Pages for Each Ranking Stratum
-def scrape_max_page(soup, url):
-	page_links=[]
+def get_max_page(soup):
+	'''
+	Determine the maximum number of pages for each category
+	'''
+	page_links = []
 
-	for link in soup.find_all("a", href=True):
-		if link["href"].find("page+")>0:
-			link=link["href"].encode("utf-8")
-			page_num=int(link[(link.find("+")+1):len(link)])
+	for link in soup.find_all('a', href=True):
+		if link['href'].find('page+') > 0:
+			link = link['href'].encode("utf-8")
+			page_num = ont(link[(link.find('+')+1):len(link)])
 
 			page_links.append(page_num)
 
 	return max(page_links)
 	
 
-#Define a Function to Scrape all Scores, Names, and Locations for Top 200 Colleges
-def scrape_category(cat_url):
-	category=cat_url.replace("-"," ").title()
+def scrape_category(base_url, category):
+	'''
+	Scrape all pages for top 200 colleges in each category
+	'''
+	logger.info('Scraping: {category} Page: 1'.format(category))
 
-	url=base_url+cat_url+"/data"
-	soup=BeautifulSoup(requests.session().get(url).text, "lxml")
+	url = '{base}/{category}/data'.format(base=base_url, category=category)
+	soup = scrape_link(url)
 
-	print "Scraping: "+category+" Page: 1"
-	df=scrape_page(soup, url)
-	max_page=scrape_max_page(soup, url)
+	df = parse_page(soup)
+	max_page = get_max_page(soup)
 
-	#print "Max Page is: "+str(max_page)
+	logger.info('{category} has {n} pages in total.'.format(category=category,
+															n=max_page))
 
-	for pg in range(2,(max_page+1)): #replace w/ total number of pages for each website
-		print "Scraping: "+category+" Page: "+str(pg)
-
-		url=base_url+cat_url+"/data/page+"+str(pg)
-		soup=BeautifulSoup(requests.session().get(url).text, "lxml")
-		page_df=scrape_page(soup, url)
-
-		df=pd.concat([df,page_df], axis=0, ignore_index=True)
-		df["category"]=category
-
-	print df[["score","school"]].head(10)
-	df.to_pickle("usnews-ranking-"+cat_url+".pickle")
+	
+	for page in range(2, max_page + 1):
+		logger.info('Scraping: {category}, Page: {page}'.format(category=category,
+																page=page))
 
 
+		url = '{base}/{category}/data/page+{page}'.format(base=base_url,
+														  category=category,
+														  page=page)
 
-#Scrape Rankings from Each U.S News Category:
-#(1) National Universities
-#(2) National Liberal Arts Colleges
-#(3) Regional Universities (North, South, Midwest, West)
-#(4) Regional Colleges (North, South, Midwest, West)
+		soup = scrape_link(url)
+		chunk = scrape_page(soup)
+		
 
-scrape_category("national-universities")
-scrape_category("national-liberal-arts-colleges")
+		df = pd.concat([df,page_df], axis=0, ignore_index=True)
+		df['page'] = page
 
-scrape_category("regional-universities-north")
-scrape_category("regional-universities-south")
-scrape_category("regional-universities-midwest")
-scrape_category("regional-universities-west")
+	df['category'] = category
+	df.to_pickle('usnews-ranking-{url}.pickle'.format(url=cat_url))
 
-scrape_category("regional-colleges-north")
-scrape_category("regional-colleges-south")
-scrape_category("regional-colleges-midwest")
-scrape_category("regional-colleges-west")
+
+if __name__ == '__main__':
+
+	# Scrape Rankings from Each U.S News Category:
+	# (1) National Universities
+	# (2) National Liberal Arts Colleges
+	# (3) Regional Universities (North, South, Midwest, West)
+	# (4) Regional Colleges (North, South, Midwest, West)
+
+	scrape_category(base_url=BASE_URL, cat_url='national-universities')
+	scrape_category(base_url=BASE_URL, cat_url='national-liberal-arts-colleges')
+	scrape_category(base_url=BASE_URL, cat_url='regional-universities-north')
+	scrape_category(base_url=BASE_URL, cat_url='regional-universities-south')
+	scrape_category(base_url=BASE_URL, cat_url='regional-universities-midwest')
+	scrape_category(base_url=BASE_URL, cat_url='regional-universities-west')
+	scrape_category(base_url=BASE_URL, cat_url='regional-colleges-north')
+	scrape_category(base_url=BASE_URL, cat_url='regional-colleges-south')
+	scrape_category(base_url=BASE_URL, cat_url='regional-colleges-midwest')
+	scrape_category(base_url=BASE_URL, cat_url='regional-colleges-west')
 
 
 
