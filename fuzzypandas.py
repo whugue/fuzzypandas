@@ -8,24 +8,6 @@ logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 
-def convert_to_string(value):
-    '''
-    Convert non-string values to strings
-    '''
-    if isinstance(value, str):
-        return value
-    else:
-        return str(value)
-
-
-def convert_to_list(value):
-
-    if isinstane(value, list):
-        return value
-    else:
-        return [value]
-
-
 def score_pairs(data, match_data, keys):
     '''
     For each row of data in data
@@ -58,7 +40,7 @@ def score_pairs(data, match_data, keys):
 
                 pair[key] = row[key]
                 pair['{col}_matched'.format(col=key)] = match_row[key]
-                pair['{col}_match_score'.format(col=key)] = score
+                pair['{col}_match_score'.format(col=key)] = score  # take this out later, only keep avg match score
                 pair['avg_match_score'] = avg_score
 
             pairs.append(pair) 
@@ -90,6 +72,9 @@ def fuzzy_merge(a, b, on, how='left', score_cutoff=60):
     '''
     Fuzzy match dataframe a onto dataframe b
     '''
+    if not isinstance(on, list):
+        on = [on]
+
     matches = matcher(a, b, on, score_cutoff)
 
     merged = pd.merge(a, matches, on=on, how=how)
@@ -97,7 +82,4 @@ def fuzzy_merge(a, b, on, how='left', score_cutoff=60):
                       b.rename(columns={col: col+'_matched' for col in on}),
                       on=[col+'_matched' for col in on],
                       how=how)
-
-    # drop extraneous scores/ other variables
-
     return merged
