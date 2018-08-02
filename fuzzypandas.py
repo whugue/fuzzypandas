@@ -16,7 +16,7 @@ def score_pairs(data, match_data, keys):
     combos = len(data) * len(match_data) * len(keys)
     logger.info('Starting Pair Scoring for {n} combinations.'.format(n=combos))
 
-    pairs  = []
+    pairs = []
     score_cache = {}
 
     for row in data:
@@ -25,7 +25,7 @@ def score_pairs(data, match_data, keys):
             sum_scores = 0
 
             for i, key in enumerate(keys, start=1):
-   
+
                 pair_string = '_'.join(sorted([row[key], match_row[key]]))
 
                 if pair_string in score_cache:
@@ -43,7 +43,7 @@ def score_pairs(data, match_data, keys):
                 pair['{col}_match_score'.format(col=key)] = score  # take this out later, only keep avg match score
                 pair['avg_match_score'] = avg_score
 
-            pairs.append(pair) 
+            pairs.append(pair)
 
     logger.info('Completed pair matching.')
     return pairs
@@ -67,7 +67,7 @@ def matcher(a, b, on, score_cutoff):
 
     return pairs
 
-    
+
 def fuzzy_merge(a, b, on, how='left', score_cutoff=60):
     '''
     Fuzzy match dataframe a onto dataframe b
@@ -79,7 +79,7 @@ def fuzzy_merge(a, b, on, how='left', score_cutoff=60):
 
     merged = pd.merge(a, matches, on=on, how=how)
     merged = pd.merge(merged,
-                      b.rename(columns={col: col+'_matched' for col in on}),
-                      on=[col+'_matched' for col in on],
+                      b.rename(columns={col: col + '_matched' for col in on}),
+                      on=[col + '_matched' for col in on],
                       how=how)
     return merged
