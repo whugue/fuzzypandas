@@ -8,5 +8,7 @@ More documentation on specific functionality coming soon!
 
 #### TODO:
 * Finish cleaning, debugging and testing.
+* Code commenting and standardization!
+* Documentatio/ README. 
 * Pooling/ threading for faster runtimes.
 * PyPI Install functionality.
