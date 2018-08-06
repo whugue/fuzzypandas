@@ -1,6 +1,3 @@
-import logging
-from fuzzywuzzy import fuzz
-
 def convert_to_string(value):
     '''
     Convert value to a string
@@ -11,50 +8,28 @@ def convert_to_string(value):
     else:
         return str(value)
 
-def validate_keys(keys):
+def convert_to_list(item):
     '''
-    Validate keys
-    TODO: check that keys are in both dataframes
+    Check if item is a list
+    If it isn't make it one
     '''
-    if isinstance(keys, list):
-        for key in keys:
-
-            if not isinstance(key, (str, int, float)):
-                logger.critical('List of keys must by types string, int or float.')
-                sys.exit(1)
-
-        return keys
-
-    elif isinstance(keys, (str, int, float)):
-        return [keys]
-
+    if isinstance(item, list):
+        return value
     else:
-        logger.critical('Key values must be type list, string, int, or float')
+        return [value]
 
-
-def fetch_scorer(request):
+def cartesian_product(list1, list2):
     '''
-    Given a requst, fetch the appropriate scoring function
+    Get the Cartesian product of two lists
     '''
-    if request = 'weighted ratio':
-        return fuzz.ratio
+    
+    list1 = convert_to_list(list1)
+    list2 = convert_to_list(list2)
+    pairs = []
 
-    elif request == 'ratio':
-        return fuzz.ratio
+    for item1 in list1:
+        for item2 in list2:
+            pair = [item1, item2]
+            pairs.append(pair)
 
-    elif request == 'partial ratio':
-        return fuzz.partio_ratio
-
-    elif request == 'token sort ratio':
-        return fuzz.token_sort_ratio
-
-    elif request == 'token set ratio':
-        return fuzz.token_set_ratio:
-
-    elif request == 'partial token set ratio':
-        return fuzz.partial_token_set_ratio
-    else:
-        logger.critical('Scoring request not recognized.')
-
-
-
+    return pairs
