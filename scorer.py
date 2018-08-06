@@ -1,6 +1,4 @@
-import sys
 import utils
-import pandas as pd
 from fuzzywuzzy import fuzz
 from multiprocessing import Pool
 
@@ -42,10 +40,27 @@ class Scorer:
         return result
 
 
-    def score(self, data1, data2, keys, method, processes):
+    def score(self, data1, data2, keys, scoring, processes):
 
+        # create cartesian product of data
         data = utils.cartesian_product(data1, data2)
     
+        # define scoring method
+        methods = {'weighted ratio': fuzz.Wratio,
+                   'ratio': fuzz.ratio,
+                   'partial ratio': fuzz.partial_ratio,
+                   'token sort ratio': fuzz.token_sort_ratio,
+                   'token set ratio': fuzz.token_set_ratio,
+                   'partial token set ratio': fuzz.partial_token_set_ratio}
+
+        if scoring not in methods:
+            warnings.warn('{scoring} not a valid scoring method. Using "Weighted Ratio."'.format(scoring=scoring))
+            method = fuzz.WRatio
+
+        else:
+            method = method[scoring]
+
+        # score all pairs via multiprocessign
         if processes:
             if processes > 1:
                 pool = Pool(processes)
@@ -53,7 +68,7 @@ class Scorer:
 
             else:
                 results = [self.score_pair(row, keys, method) for row in data]
-                
+
         else:
             results = [self.score_pair(row, keys, method) for row in data]
 

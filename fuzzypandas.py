@@ -10,18 +10,11 @@ def fuzzy_merge(a, b, on, how='left', scoring='weighted ratio', score_cutoff=60,
   on = utils.convert_to_list(on)
 
   # impliment scoring
-  methods = {'weighted ratio': fuzz.Wratio,
-             'ratio': fuzz.ratio,
-             'partial ratio': fuzz.partial_ratio,
-             'token sort ratio': fuzz.token_sort_ratio,
-             'token set ratio': fuzz.token_set_ratio,
-             'partial token set ratio': fuzz.partial_token_set_ratio}
-
   scorer = Scorer()
   matches = scorer.score(data1=a.to_dict('records'),
                          data2=b.to_dict('records'),
                          keys=on,
-                         method=methods[scoring],
+                         scoring=scoring,
                          processes=processes)
 
   # get best matches from scoring results
