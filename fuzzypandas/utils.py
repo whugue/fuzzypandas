@@ -8,21 +8,22 @@ def convert_to_string(value):
     else:
         return str(value)
 
+
 def convert_to_list(item):
     '''
     Check if item is a list
     If it isn't make it one
     '''
     if isinstance(item, list):
-        return value
+        return item
     else:
-        return [value]
+        return [item]
+
 
 def cartesian_product(list1, list2):
     '''
     Get the Cartesian product of two lists
     '''
-    
     list1 = convert_to_list(list1)
     list2 = convert_to_list(list2)
     pairs = []
